@@ -28,8 +28,13 @@ class Movimiento:
         return f"IMovimiento: {self.fecha} {self.concepto} {self.cantidad:.2f}"
 
 class Ingreso(Movimiento):
-    def __repr__(self):
+    def __repr__(self, other):
         return f"Ingreso: {self.fecha} {self.concepto} {self.cantidad:.2f}"
+    
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return False
+        return self.concepto == other.concepto and self.cantidad == other.cantidad and self.fecha == other.fecha
 
 class Gasto(Movimiento):
     def __init__(self, concepto, fecha, cantidad, categoria):
@@ -43,6 +48,11 @@ class Gasto(Movimiento):
 
     def __repr__(self):
         return f"Gasto ({self.categoria.name}): {self.fecha} {self.concepto} {self.cantidad:.2f}"
+    
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return False
+        return self.concepto == other.concepto and self.cantidad == other.cantidad and self.fecha == other.fecha and self.categoria == other.categoria
 
 class CategoriaGastos(Enum):
     NECESIDAD = 1
@@ -56,6 +66,7 @@ class Dao:
         if not os.path.exists(self.ruta):
             with open(self.ruta, "w", newline="") as f:
                 f.write("concepto,fecha,cantidad,categoria\n")
+        self.puntero_lectura = 0
 
     def grabar(self, movimiento):
         with open(self.ruta, "a", newline="") as f:
@@ -70,9 +81,15 @@ class Dao:
     def leer(self):
         with open(self.ruta, "r") as f:
             reader = csv.DictReader(f)
+            contador = 0
             for row in reader:
                 if row['categoria'] == "":
                     variable = Ingreso(row['concepto'], date.fromisoformat(row['fecha']), float(row['cantidad']))
                 else:
                     variable = Gasto(row["concepto"], date.fromisoformat(row["fecha"]), float(row["cantidad"]), CategoriaGastos(int(row["categoria"])))
-                return variable
+                
+                if contador == self.puntero_lectura:
+                    self.puntero_lectura += 1
+                    return variable
+                contador += 1
+            return None
