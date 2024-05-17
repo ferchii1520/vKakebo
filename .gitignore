@@ -1,3 +1,6 @@
 eVirtual/
 **__pycache__/
 .vscode/
+datos/**.csv
+datos/**.db
+**__init__/

@@ -9,18 +9,21 @@
     3.2 Leer esos datos con el dao
     3.3 Comprobar que nos ha creado tantos movimientos como haya creado
 """
-from kakebo.modelos import Dao, Ingreso, Gasto, CategoriaGastos
+from kakebo.modelos import Dao_CSV, Ingreso, Gasto, CategoriaGastos, DaoSqlite
 from datetime import date
 import os
+import sqlite3
+
+ruta_Sqlite = "datos/movimientos_test.db"
 
 def borrar_fichero(path):
     if os.path.exists(path):
         os.remove(path)
 
-def test_crear_dao():
+def test_crear_dao_csv():
     ruta = "datos/test_movimientos.csv"
     borrar_fichero(ruta)
-    dao = Dao(ruta)
+    dao = Dao_CSV(ruta)
     assert dao.ruta == ruta
 
     with  open(ruta, "r") as f:
@@ -32,7 +35,7 @@ def test_crear_dao():
 def test_guardar_Ingreso_Gasto():
     ruta = "datos/test_movimientos.csv"
     borrar_fichero(ruta)
-    dao = Dao(ruta)
+    dao = Dao_CSV(ruta)
     
     ing = Ingreso("Un ingreso", date(1999, 12, 31), 100)
     dao.grabar(ing)
@@ -56,7 +59,7 @@ def test_leer_Ingreso_Gasto():
         f.write("La luz,2020-04-02,1000.50,\n")
         f.write("Sushi,2024-05-10,350.20,1\n")
     
-    dao = Dao(ruta)
+    dao = Dao_CSV(ruta)
 
     movimiento1 = dao.leer()
     assert movimiento1 == Ingreso("La luz", date(2020, 4, 2), 1000.50)
@@ -66,3 +69,66 @@ def test_leer_Ingreso_Gasto():
 
     movimiento3 = dao.leer()
     assert movimiento3 is None
+
+def test_crear_dao_sqlite():
+    ruta = ruta_Sqlite
+    dao = DaoSqlite(ruta)
+
+    assert dao.ruta == ruta
+
+def test_leer_dao_sqlite():
+    con = sqlite3.connect(ruta_Sqlite)
+    cur = con.cursor()
+
+    query = "DELETE FROM movimientos;"
+    cur.execute(query)
+    con.commit()
+
+    query = """
+        INSERT INTO movimientos (id, tipo_movimiento, concepto, fecha, cantidad, categoria)
+            VALUES(?, ?, ?, ?, ?, ?)
+        """
+    
+    cur.executemany(query, [(1, "I", "Un ingreso", date(2024, 5, 14), 100, None), 
+                        (2, "G", "Un gasto", date(2024, 5, 1), 123, 3)])
+    
+    con.commit()
+    con.close()
+
+    dao = DaoSqlite(ruta_Sqlite)
+
+    movimiento = dao.leer(1)
+    assert movimiento == Ingreso("Un ingreso", date(2024, 5, 14), 100)
+
+    movimiento = dao.leer(2)
+    assert movimiento == Gasto("Un gasto", date(2024, 5, 1), 123, CategoriaGastos.OCIO_VICIO)
+
+def test_grabar_sqlite():
+    con = sqlite3.connect(ruta_Sqlite)
+    cur = con.cursor()
+
+    query = "DELETE FROM movimientos;"
+    cur.execute(query)
+    con.commit()
+    con.close()
+
+    ing = Ingreso("Venta carro", date(2024, 5, 4), 123)
+    dao = DaoSqlite(ruta_Sqlite)
+    dao.grabar(ing)
+
+    con = sqlite3.connect(ruta_Sqlite)
+    cur = con.cursor()
+
+    query = """
+        SELECT id, tipo_movimiento, concepto, fecha, cantidad, categoria
+            FROM movimientos
+            ORDER BY id DESC LIMIT 1
+        """
+    res = cur.execute(query)
+    fila = res.fetchone()
+
+    assert fila[1] == "I"
+    assert fila[2] == "Venta carro"
+    assert fila[3] == "2024-05-04"
+    assert fila[4] == 123.0
+    assert fila[5] is None
