@@ -3,10 +3,11 @@ from enum import Enum
 import csv, os, sqlite3
 
 class Movimiento:
-    def __init__(self, concepto, fecha, cantidad):
+    def __init__(self, concepto, fecha, cantidad, id = None):
         self.concepto = concepto
         self.fecha = fecha
         self.cantidad = cantidad
+        self.id = id
         self.validar_tipos()
     
     def validar_tipos(self):
@@ -15,7 +16,7 @@ class Movimiento:
         if len(self.concepto) < 5:
             raise ValueError("El concepto no puede estar vacio, o ser menor de 5 caracteres")
         if not isinstance(self.fecha, date):
-            raise TypeError("Lafecha debe estar en formato (yyyy,mm,dd)")
+            raise TypeError("La fecha debe estar en formato (yyyy,mm,dd)")
         if self.fecha > date.today():
             raise ValueError("La fecha no puede ser posterior al dia de hoy")
         if not (isinstance(self.cantidad, int) or isinstance(self.cantidad, float)):
@@ -36,8 +37,8 @@ class Ingreso(Movimiento):
         return self.concepto == other.concepto and self.cantidad == other.cantidad and self.fecha == other.fecha
 
 class Gasto(Movimiento):
-    def __init__(self, concepto, fecha, cantidad, categoria):
-        super().__init__(concepto, fecha, cantidad)
+    def __init__(self, concepto, fecha, cantidad, categoria, id = None):
+        super().__init__(concepto, fecha, cantidad, id)
         self.categoria = categoria
         self.validar_categoria()
         
@@ -113,7 +114,34 @@ class DaoSqlite:
 
         if valores:
             if valores[1] == "I":
-                return Ingreso(valores[2], date.fromisoformat(valores[3]), valores[4])
+                return Ingreso(valores[2], date.fromisoformat(valores[3]), valores[4], valores[0])
             elif valores[1] == "G":
-                return Gasto(valores[2], date.fromisoformat(valores[3]), valores[4], CategoriaGastos(valores[5]))
+                return Gasto(valores[2], date.fromisoformat(valores[3]), valores[4], CategoriaGastos(valores[5]), valores[0])
         return None
+    
+    def grabar(self, movimiento):
+        con = sqlite3.connect(self.ruta)
+        cur = con.cursor()
+
+        if isinstance(movimiento, Ingreso):
+            tipo_mov = "I"
+            categoria = None
+        elif isinstance(movimiento, Gasto):
+            tipo_mov = "G"
+            categoria = movimiento.categoria.value
+
+        if movimiento.id is None:
+            query = """
+                        INSERT INTO movimientos (tipo_movimiento, concepto, fecha, cantidad, categoria)
+                            VALUES (?, ?, ?, ?, ?)
+                    """
+            cur.execute(query, (tipo_mov, movimiento.concepto, movimiento.fecha, movimiento.cantidad, categoria))
+        else:
+            query = """
+                        UPDATE movimientos set concepto = ?, fecha = ?, cantidad = ?, categoria = ?
+                            WHERE id = ?
+                    """
+            cur.execute(query,(movimiento.concepto, movimiento.fecha, movimiento.cantidad, categoria, movimiento.id))
+
+        con.commit()
+        con.close()

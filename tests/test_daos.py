@@ -20,6 +20,15 @@ def borrar_fichero(path):
     if os.path.exists(path):
         os.remove(path)
 
+def borrar_movimientos_sqlite():
+    con = sqlite3.connect(ruta_Sqlite)
+    cur = con.cursor()
+
+    query = "DELETE FROM movimientos;"
+    cur.execute(query)
+    con.commit()
+    con.close()
+
 def test_crear_dao_csv():
     ruta = "datos/test_movimientos.csv"
     borrar_fichero(ruta)
@@ -77,12 +86,9 @@ def test_crear_dao_sqlite():
     assert dao.ruta == ruta
 
 def test_leer_dao_sqlite():
+    borrar_movimientos_sqlite()
     con = sqlite3.connect(ruta_Sqlite)
     cur = con.cursor()
-
-    query = "DELETE FROM movimientos;"
-    cur.execute(query)
-    con.commit()
 
     query = """
         INSERT INTO movimientos (id, tipo_movimiento, concepto, fecha, cantidad, categoria)
@@ -104,13 +110,7 @@ def test_leer_dao_sqlite():
     assert movimiento == Gasto("Un gasto", date(2024, 5, 1), 123, CategoriaGastos.OCIO_VICIO)
 
 def test_grabar_sqlite():
-    con = sqlite3.connect(ruta_Sqlite)
-    cur = con.cursor()
-
-    query = "DELETE FROM movimientos;"
-    cur.execute(query)
-    con.commit()
-    con.close()
+    borrar_movimientos_sqlite()
 
     ing = Ingreso("Venta carro", date(2024, 5, 4), 123)
     dao = DaoSqlite(ruta_Sqlite)
@@ -126,9 +126,43 @@ def test_grabar_sqlite():
         """
     res = cur.execute(query)
     fila = res.fetchone()
+    con.close()
 
     assert fila[1] == "I"
     assert fila[2] == "Venta carro"
     assert fila[3] == "2024-05-04"
     assert fila[4] == 123.0
     assert fila[5] is None
+
+def test_update_sqlite():
+    borrar_movimientos_sqlite()
+    
+    con = sqlite3.connect(ruta_Sqlite)
+    cur = con.cursor()
+    
+    query = """
+            INSERT INTO movimientos (id, tipo_movimiento, concepto, fecha, cantidad)
+                VALUES (1,'I', 'Concepto original', '0001-01-01', 0.1)
+            """
+    
+    cur.execute(query)
+    con.commit()
+    con.close()
+    
+    dao = DaoSqlite(ruta_Sqlite)
+    
+    movimiento = dao.leer(1)
+    movimiento.concepto = "Concepto cambiado"
+    movimiento.fecha = date(2024, 1, 4)
+    movimiento.cantidad = 32
+    
+    dao.grabar(movimiento)
+    
+    # Comprobar la modificacion
+    
+    modificado = dao.leer(1)
+    
+    assert isinstance(modificado, Ingreso)
+    assert modificado.concepto == "Concepto cambiado"
+    assert modificado.fecha == date(2024, 1, 4)
+    assert modificado.cantidad == 32.0
