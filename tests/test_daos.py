@@ -229,3 +229,4 @@ def test_leerTodo_dao_sqlite():
 
     movimiento6 = dao.leerTodo()
     assert Gasto("comida familiar", date(2024, 4, 16), 90, CategoriaGastos.OCIO_VICIO) in movimiento
+

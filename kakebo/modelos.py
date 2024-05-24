@@ -178,3 +178,4 @@ class DaoSqlite:
                 lista_completa.append(Gasto(valor[2], date.fromisoformat(valor[3]), valor[4], CategoriaGastos(valor[5]), valores[0]))
                 
         return lista_completa
+    
