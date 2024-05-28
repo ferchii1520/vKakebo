@@ -57,10 +57,11 @@ class DateInput(tk.Frame):
         if candidato == "":
             self.month_Var.config(state=tk.DISABLED)
             return True
-        if int(candidato) > 0 and int(candidato) < 32:
+        try:
+            datetime(2000, 1, int(candidato))
             self.month_Var.config(state=tk.NORMAL)
             return True
-        else:
+        except ValueError:
             return False
         
     def __validate_mes(self, candidato):
