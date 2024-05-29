@@ -11,10 +11,9 @@
 """
 from kakebo.modelos import Dao_CSV, Ingreso, Gasto, CategoriaGastos, DaoSqlite
 from datetime import date
+from kakebo import ruta_Sqlite
 import os
 import sqlite3
-
-ruta_Sqlite = "datos/movimientos_test.db"
 
 def borrar_fichero(path):
     if os.path.exists(path):
